@@ -5,42 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FACE.DETECT</title>
 
-  <!--
-    ╔══════════════════════════════════════════════════════════════╗
-    ║  Content Security Policy                                     ║
-    ║                                                              ║
-    ║  default-src 'none'  — deny everything unless listed below  ║
-    ║                                                              ║
-    ║  script-src                                                  ║
-    ║    'self'              face-detector.js (local)              ║
-    ║    cdn.jsdelivr.net    MediaPipe camera/drawing/detection    ║
-    ║    'wasm-unsafe-eval'  MediaPipe WebAssembly module          ║
-    ║    'unsafe-eval'       MediaPipe JS bootstrap uses eval()    ║
-    ║                                                              ║
-    ║  style-src                                                   ║
-    ║    'self'              face-detector.css (local)             ║
-    ║    fonts.googleapis.com  Google Fonts stylesheet             ║
-    ║                                                              ║
-    ║  font-src                                                    ║
-    ║    fonts.gstatic.com   Google Fonts actual font files        ║
-    ║                                                              ║
-    ║  img-src                                                     ║
-    ║    'self'              any local images                      ║
-    ║    data:               canvas → toDataURL() snapshots        ║
-    ║    blob:               snapshot download (Blob URL)          ║
-    ║                                                              ║
-    ║  media-src                                                   ║
-    ║    'self'              baseline media                        ║
-    ║    mediastream:        getUserMedia() camera stream          ║
-    ║                                                              ║
-    ║  connect-src                                                 ║
-    ║    cdn.jsdelivr.net    MediaPipe fetches WASM & model files  ║
-    ║                                                              ║
-    ║  worker-src                                                  ║
-    ║    blob:               MediaPipe spawns WASM workers         ║
-    ║                                                              ║
-    ╚══════════════════════════════════════════════════════════════╝
-  -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src  'none';
     script-src   'self'
@@ -64,7 +28,6 @@
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════ HEADER -->
 <header>
   <div class="logo">FACE<span>.</span>DETECT</div>
   <div class="status-bar">
@@ -74,7 +37,6 @@
   </div>
 </header>
 
-<!-- ═══════════════════════════════════════════════════════════ MAIN -->
 <main>
 
   <!-- ── Left column: viewport + controls + gallery ── -->
@@ -201,12 +163,6 @@
   <button class="lb-dl" id="lb-dl" aria-label="Download snapshot as PNG">[ ↓ DOWNLOAD PNG ]</button>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════ SCRIPTS -->
-<!--
-  MediaPipe loads model weights from jsDelivr CDN on first use, then caches them.
-  After that, all face detection runs inside WebAssembly with zero network access.
-  No pixel data or image ever leaves the browser tab.
--->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>

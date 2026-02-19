@@ -1,5 +1,4 @@
 
-/* ── 1. Variables & Reset ─────────────────────────────────── */
 :root {
   --green:        #00ff88;
   --green-dim:    #00ff8844;
@@ -12,7 +11,6 @@
   --font-mono:    'Share Tech Mono', monospace;
   --font-display: 'Bebas Neue', cursive;
 
-  
   --gallery-row-h: 72px;
   --gallery-gap:   5px;
 }
@@ -22,7 +20,6 @@
   padding: 0;
   box-sizing: border-box;
 }
-
 
 body {
   background: var(--bg);
@@ -49,6 +46,7 @@ body::after {
   z-index: 999;
 }
 
+/* CRT vignette overlay */
 body::before {
   content: '';
   position: fixed;
@@ -158,6 +156,7 @@ footer {
 }
 
 
+/* ── 3. Viewport ──────────────────────────────────────────── */
 
 /* Aspect-ratio fallback for Safari <15 */
 .viewport-sizer {
@@ -280,7 +279,6 @@ canvas#overlay {
 .banner.error   { border-color: var(--red); background: rgba(255, 68, 85, 0.08); color: var(--red); }
 
 
-/* ── 4. Controls ──────────────────────────────────────────── */
 .toolbar { display: flex; gap: 7px; }
 
 .btn {
@@ -344,7 +342,6 @@ canvas#overlay {
 }
 
 
-/* ── 5. Gallery ───────────────────────────────────────────── */
 .gallery-card { border: 1px solid var(--border); background: var(--panel); padding: 11px; }
 
 .card-header {
@@ -361,10 +358,8 @@ canvas#overlay {
 }
 .card-header span { color: var(--green); }
 
-/* Right side of gallery card header */
 .card-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-/* Scroll arrow buttons in gallery header */
 .gallery-scroll-btns { display: flex; gap: 4px; align-items: center; }
 .gallery-scroll-btn {
   background: transparent;
@@ -382,7 +377,6 @@ canvas#overlay {
 .gallery-scroll-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
 .gallery-scroll-btn:disabled { opacity: 0.2; cursor: default; }
 
-/* Wrapper — hosts scroll-shadow fade pseudo-elements */
 .gallery-wrapper { position: relative; min-height: 0; }
 .gallery-wrapper::before,
 .gallery-wrapper::after {
@@ -411,7 +405,7 @@ canvas#overlay {
   grid-template-columns: repeat(4, 1fr);
   grid-auto-rows: var(--gallery-row-h);
   gap: var(--gallery-gap);
-  /* 2 rows + gap visible, rest scrollable */
+
   max-height: calc(var(--gallery-row-h) * 2 + var(--gallery-gap) * 3);
   min-height: var(--gallery-row-h);
   overflow-y: auto;
@@ -421,7 +415,6 @@ canvas#overlay {
   scrollbar-color: var(--green) var(--border);
 }
 
-/* Chrome / Safari / Edge scrollbar */
 .gallery::-webkit-scrollbar              { width: 4px; }
 .gallery::-webkit-scrollbar-track        { background: var(--border); border-radius: 2px; }
 .gallery::-webkit-scrollbar-thumb        { background: var(--green); border-radius: 2px; box-shadow: 0 0 4px var(--green); }
@@ -644,8 +637,7 @@ canvas#overlay {
   /* snap-thumb sized by grid-auto-rows — no override needed */
 }
 
-
-/* ·· Tablet  768–1023px · */
+/* ·· Tablet  768–1023px ·········································· */
 @media (max-width: 1023px) {
   main {
     padding: 10px 14px;
@@ -666,7 +658,7 @@ canvas#overlay {
   header { padding: 10px 18px; }
 }
 
-/* ·· Mobile  ≤767px ·······*/
+/* ·· Mobile  ≤767px ··············································· */
 @media (max-width: 767px) {
 
   header {

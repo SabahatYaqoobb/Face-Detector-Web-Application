@@ -1,34 +1,8 @@
-/**
- * face-detector.js
- *
- * Sections (Ctrl+F the section title to jump):
- *   §1  CONFIG          — Constants and tuning values
- *   §2  COMPAT          — Polyfills and cross-browser helpers
- *   §3  DOM             — Central DOM element registry
- *   §4  STATE           — All mutable runtime state in one object
- *   §5  LOGGER          — log() and banner helpers
- *   §6  STATS           — Frame-level statistics accumulation + throttled DOM flush
- *   §7  RENDERER        — Canvas drawing: bounding boxes, landmarks, overlay
- *   §8  SNAPSHOT        — Capture, gallery, lightbox, download
- *   §9  DETECTOR        — MediaPipe FaceDetection wrapper (model kept warm across sessions)
- *  §10  CAMERA          — getUserMedia, stream lifecycle, onFrame loop
- *  §11  UI              — Button states, detection toggle, progress bar, clock, keyboard
- *  §12  BOOT            — Preflight checks, event wiring, init
- *
- * Privacy guarantee:
- *   Zero fetch/XHR/WebSocket/sendBeacon calls in this file.
- *   Camera frames pass to MediaPipe's WASM module in-process only.
- *   Snapshots are stored as dataURLs in JS heap (RAM) and never transmitted.
- *   Downloads use browser-local Blob URLs that are revoked after use.
- */
 
 (function () {
 'use strict';
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §1  CONFIG
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 const CONFIG = {
   MAX_SNAPS:           12,
@@ -43,9 +17,6 @@ const CONFIG = {
 };
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §2  COMPAT
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 // classList.replace() is absent in some older browsers — use these helpers everywhere.
 function clsAdd(el, cls)         { el.classList.add(cls); }
@@ -67,12 +38,6 @@ const perf = (typeof performance !== 'undefined' && performance.now)
   ? () => performance.now()
   : () => Date.now();
 
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   §3  DOM
-   Central registry of every element the JS touches.
-   One place to look when an id changes in the HTML.
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 const DOM = {
   // Header
@@ -140,12 +105,6 @@ const DOM = {
 };
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §4  STATE
-   All mutable runtime variables live here. Grouping them makes it easy to
-   see the full application state at a glance and to reset it cleanly.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 const State = {
   // Session lifecycle
   running:       false,
@@ -204,15 +163,6 @@ function resetSessionState() {
 }
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §5  LOGGER
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Append a timestamped entry to the on-screen log panel.
- * @param {string} msg
- * @param {''|'hl'|'wn'|'er'} type  — '' normal, 'hl' highlight, 'wn' warning, 'er' error
- */
 function log(msg, type = '') {
   const ts    = new Date().toTimeString().slice(0, 8);
   const entry = document.createElement('div');
@@ -241,12 +191,6 @@ function showBanner(msg, isError = false) {
 /** Hide the banner. */
 function hideBanner() { clsRemove(DOM.banner, 'visible'); }
 
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   §6  STATS
-   Raw accumulators are updated every frame (cheap arithmetic).
-   DOM writes are batched and flushed every CONFIG.STATS_FLUSH_EVERY frames.
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 /** Called once per detection frame to accumulate raw numbers. */
 function accumulateStats(detections) {
@@ -321,11 +265,6 @@ function stopSessionTimer() {
 }
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §7  RENDERER
-   All canvas drawing is isolated here. The canvas is never resized unless
-   dimensions have genuinely changed (avoids GPU texture destruction every frame).
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 /** Sync canvas logical size to the current video dimensions (no-op if unchanged). */
 function syncOverlaySize() {
@@ -423,12 +362,6 @@ function drawDetections(detections) {
 }
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §8  SNAPSHOT
-   All image data stays in JS heap (RAM). The canvas.toDataURL() call is
-   purely local. Downloads use Blob URLs that are revoked after use.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 /** Capture the current video frame + overlay into an in-memory PNG. */
 function takeSnapshot() {
   if (!State.running) return;
@@ -511,11 +444,6 @@ function renderGallery() {
   updateGalleryScroll();
 }
 
-/**
- * Update scroll arrow enabled states and fade shadow indicators.
- * Deferred via requestAnimationFrame so it always reads post-layout dimensions.
- * Called after every render and on scroll events.
- */
 function updateGalleryScroll() {
   requestAnimationFrame(() => {
     const el        = DOM.gallery;
@@ -533,11 +461,7 @@ function updateGalleryScroll() {
   });
 }
 
-/**
- * Scroll the gallery by exactly one row.
- * Row height comes from grid-auto-rows (72px) + gap (5px) = 77px.
- * Reading it from the first child at call time handles any future CSS changes.
- */
+
 function scrollGalleryBy(direction) {
   const firstThumb = DOM.gallery.firstElementChild;
   const rowHeight  = firstThumb
@@ -597,11 +521,7 @@ function openLightbox(snap) {
 /** Close the lightbox. */
 function closeLightbox() { clsRemove(DOM.lightbox, 'open'); }
 
-/**
- * Trigger a browser-local PNG download.
- * Uses Blob URL (works in Safari) with a dataURL fallback for ancient browsers.
- * The Blob URL is revoked after CONFIG.SNAP_REVOKE_MS to free memory.
- */
+
 function downloadSnap(snap) {
   try {
     const [header, b64] = snap.dataUrl.split(',');
@@ -632,17 +552,6 @@ function triggerDownload(href, filename) {
 }
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §9  DETECTOR
-   The FaceDetection instance is created once on first use and reused across
-   sessions. Re-creating it would require re-downloading model weights.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Ensure the MediaPipe FaceDetection model is ready.
- * Safe to call multiple times — is a no-op after first successful init.
- * @returns {Promise<void>}
- */
 function ensureModelReady() {
   return new Promise((resolve, reject) => {
     // Already warmed up — nothing to do
@@ -704,11 +613,6 @@ function onDetectionResults(results) {
 }
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §10  CAMERA
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/** Entry point: check permissions then request the stream. */
 function startDetection() {
   if (State.initializing || State.running) return;
   if (!checkSecureContext()) return;
@@ -738,10 +642,7 @@ function startDetection() {
   });
 }
 
-/**
- * Call getUserMedia. On OverconstrainedError, retry with no constraints.
- * @param {object|true} videoConstraints
- */
+
 function requestCamera(videoConstraints) {
   navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false })
     .then(onStreamAcquired)
@@ -831,11 +732,7 @@ function onStreamAcquired(stream) {
     });
 }
 
-/**
- * onFrame callback for MediaPipe Camera.
- * The in-flight guard prevents queuing multiple concurrent faceDetector.send() calls,
- * which would cause results to arrive out of order and waste GPU cycles.
- */
+
 function onCameraFrame() {
   if (document.hidden) return Promise.resolve();   // save CPU when tab is backgrounded
   if (State.inFlight)  return Promise.resolve();   // previous frame still processing
@@ -918,13 +815,7 @@ function releaseStream() {
   DOM.video.srcObject = null;
 }
 
-/**
- * Wait until video.videoWidth/Height are non-zero.
- * Listens for both 'loadedmetadata' (Firefox) and 'canplay' (Safari/Chrome)
- * with a pre-check for the case where the event already fired.
- * @param {number} timeout ms
- * @returns {Promise<void>}
- */
+
 function waitForVideoDimensions(timeout) {
   return new Promise((resolve, reject) => {
     // Already ready
@@ -951,16 +842,6 @@ function waitForVideoDimensions(timeout) {
 }
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §11  UI
-   Button state management, detection toggle, progress bar, clock, keyboard.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Toggle face detection on or off.
- * @param {boolean} on
- * @param {boolean} [silent=false] — skip log message (used when resetting on stop)
- */
 function setDetectionOn(on, silent = false) {
   State.detectionOn = on;
 
@@ -1041,15 +922,6 @@ function bindVisibilityChange() {
 }
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   §11b  PERMISSIONS  (kept with UI since they directly affect button state)
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Verify the page is in a secure context (HTTPS or localhost).
- * getUserMedia is unavailable over plain HTTP.
- * @returns {boolean}
- */
 function checkSecureContext() {
   const isSecure = typeof isSecureContext !== 'undefined'
     ? isSecureContext
@@ -1069,12 +941,7 @@ function checkSecureContext() {
   return isSecure;
 }
 
-/**
- * Query current camera permission state via the Permissions API.
- * Falls back gracefully when the API is unavailable (Firefox <46, Safari <16).
- * Registers an onchange listener so mid-session revocations are caught.
- * @param {(state: 'granted'|'denied'|'prompt') => void} callback
- */
+
 function checkCameraPermission(callback) {
   if (!navigator.permissions || !navigator.permissions.query) {
     callback('prompt'); return;
@@ -1096,11 +963,7 @@ function checkCameraPermission(callback) {
     .catch(() => callback('prompt'));   // some browsers reject 'camera' as a query name
 }
 
-/**
- * Translate a getUserMedia DOMException into a human-readable instruction.
- * @param {DOMException} err
- * @returns {string}
- */
+   
 function classifyMediaError(err) {
   switch (err.name) {
     case 'NotAllowedError':
@@ -1124,11 +987,6 @@ function classifyMediaError(err) {
   }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   §12  BOOT
-   Wire up all event listeners, run preflight checks, then wait for the user.
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 function init() {
   // Persistent UI
@@ -1182,12 +1040,11 @@ function init() {
   log('Keys: SPACE = snapshot  |  D = toggle detect', 'wn');
 }
 
-// Run on DOMContentLoaded (script tag is at end of body so DOM is already ready,
-// but this guard makes the file safe to move to <head> if ever needed)
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
 }
 
-})(); // end IIFE
+})(); 

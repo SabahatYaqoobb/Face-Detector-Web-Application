@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FACE.DETECT</title>
+
+  <!--
+    ╔══════════════════════════════════════════════════════════════╗
+    ║  Content Security Policy                                     ║
+    ║                                                              ║
+    ║  default-src 'none'  — deny everything unless listed below  ║
+    ║                                                              ║
+    ║  script-src                                                  ║
+    ║    'self'              face-detector.js (local)              ║
+    ║    cdn.jsdelivr.net    MediaPipe camera/drawing/detection    ║
+    ║    'wasm-unsafe-eval'  MediaPipe WebAssembly module          ║
+    ║    'unsafe-eval'       MediaPipe JS bootstrap uses eval()    ║
+    ║                                                              ║
+    ║  style-src                                                   ║
+    ║    'self'              face-detector.css (local)             ║
+    ║    fonts.googleapis.com  Google Fonts stylesheet             ║
+    ║                                                              ║
+    ║  font-src                                                    ║
+    ║    fonts.gstatic.com   Google Fonts actual font files        ║
+    ║                                                              ║
+    ║  img-src                                                     ║
+    ║    'self'              any local images                      ║
+    ║    data:               canvas → toDataURL() snapshots        ║
+    ║    blob:               snapshot download (Blob URL)          ║
+    ║                                                              ║
+    ║  media-src                                                   ║
+    ║    'self'              baseline media                        ║
+    ║    mediastream:        getUserMedia() camera stream          ║
+    ║                                                              ║
+    ║  connect-src                                                 ║
+    ║    cdn.jsdelivr.net    MediaPipe fetches WASM & model files  ║
+    ║                                                              ║
+    ║  worker-src                                                  ║
+    ║    blob:               MediaPipe spawns WASM workers         ║
+    ║                                                              ║
+    ╚══════════════════════════════════════════════════════════════╝
+  -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src  'none';
+    script-src   'self'
+                 https://cdn.jsdelivr.net
+                 'wasm-unsafe-eval'
+                 'unsafe-eval';
+    style-src    'self'
+                 https://fonts.googleapis.com;
+    font-src     https://fonts.gstatic.com;
+    img-src      'self'
+                 data:
+                 blob:;
+    media-src    'self'
+                 mediastream:;
+    connect-src  https://cdn.jsdelivr.net;
+    worker-src   blob:;
+  ">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="face-detector.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ HEADER -->
+<header>
+  <div class="logo">FACE<span>.</span>DETECT</div>
+  <div class="status-bar">
+    <div class="status-item"><div class="dot" id="dot-cam"></div> CAMERA</div>
+    <div class="status-item"><div class="dot" id="dot-model"></div> MODEL</div>
+    <div class="status-item"><div class="dot" id="dot-detect"></div> DETECTING</div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════ MAIN -->
+<main>
+
+  <!-- ── Left column: viewport + controls + gallery ── -->
+  <div class="left-col">
+
+    <!-- Viewport label bar -->
+    <div class="vp-top-bar">
+      <span>// LIVE FEED — CAM_0</span>
+      <div class="vp-top-right">
+        <span id="res-label">—</span>
+        <span class="det-badge" id="det-badge">DETECT: ON</span>
+      </div>
+    </div>
+
+    <!-- Permission / error banner -->
+    <div class="banner" id="banner" role="alert" aria-live="assertive"></div>
+
+    <!-- Video viewport -->
+    <div class="viewport-sizer">
+      <div class="viewport" id="viewport">
+        <div class="corner-bl" aria-hidden="true"></div>
+        <div class="corner-tr" aria-hidden="true"></div>
+        <div class="grid-bg"   aria-hidden="true"></div>
+        <video id="video" autoplay muted playsinline webkit-playsinline></video>
+        <canvas id="overlay" aria-hidden="true"></canvas>
+        <div class="flash" id="flash" aria-hidden="true"></div>
+        <div class="idle-msg" id="idle-msg" aria-live="polite">
+          <div class="icon" aria-hidden="true">◉</div>
+          <p id="idle-text">AWAITING CAMERA INPUT<br>PRESS INITIALIZE TO BEGIN</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls toolbar -->
+    <div class="toolbar" role="toolbar" aria-label="Detection controls">
+      <button class="btn"       id="start-btn"  aria-label="Initialize camera and detection">[ INITIALIZE ]</button>
+      <button class="btn amber" id="toggle-btn" aria-label="Pause face detection" aria-pressed="false" disabled>[ PAUSE DETECT ]</button>
+      <button class="btn"       id="snap-btn"   aria-label="Take snapshot" title="Press SPACEBAR" disabled>[ ⊙ SNAPSHOT ]</button>
+    </div>
+    <div class="load-bar" id="load-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="load-bar-fill" id="load-fill"></div>
+    </div>
+
+    <!-- Snapshot gallery -->
+    <div class="gallery-card">
+      <div class="card-header">
+        SNAPSHOTS — STORED LOCALLY IN MEMORY
+        <div class="card-header-right">
+          <span id="snap-count-lbl" aria-live="polite">0 / 12</span>
+          <div class="gallery-scroll-btns" aria-label="Scroll gallery">
+            <button class="gallery-scroll-btn" id="gallery-scroll-up"   aria-label="Scroll up"   disabled title="Scroll up">▲</button>
+            <button class="gallery-scroll-btn" id="gallery-scroll-down" aria-label="Scroll down" disabled title="Scroll down">▼</button>
+          </div>
+        </div>
+      </div>
+      <div class="gallery-wrapper" id="gallery-wrapper">
+        <div class="gallery" id="gallery" role="list" aria-label="Captured snapshots">
+          <div class="gallery-empty" id="gallery-empty" role="listitem">
+            NO SNAPSHOTS YET — PRESS ⊙ OR SPACEBAR
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /left-col -->
+
+  <!-- ── Right column: stats panels ── -->
+  <div class="side-panel">
+
+    <div class="card">
+      <h3>DETECTED FACES</h3>
+      <div class="big-count">
+        <div class="big-num" id="face-count" aria-live="polite" aria-label="Face count">0</div>
+        <div class="big-label">TARGETS ACQUIRED</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>LIVE METRICS</h3>
+      <div class="row"><span class="rl">FPS</span>        <span class="rv" id="fps-val">—</span></div>
+      <div class="row"><span class="rl">LATENCY</span>    <span class="rv" id="latency-val">—</span></div>
+      <div class="row"><span class="rl">CONFIDENCE</span> <span class="rv" id="conf-val">—</span></div>
+      <div class="row"><span class="rl">FRAMES</span>     <span class="rv" id="frames-val">0</span></div>
+    </div>
+
+    <div class="card">
+      <h3>SESSION STATISTICS</h3>
+      <div class="row"><span class="rl">TOTAL DETECTIONS</span>  <span class="rv" id="stat-total">0</span></div>
+      <div class="row"><span class="rl">MAX SIMULTANEOUS</span>  <span class="rv" id="stat-max">0</span></div>
+      <div class="row"><span class="rl">AVG FACES/FRAME</span>   <span class="rv" id="stat-avg">0.00</span></div>
+      <div class="row"><span class="rl">AVG CONFIDENCE</span>    <span class="rv" id="stat-conf">—</span></div>
+      <div class="row"><span class="rl">SESSION TIME</span>      <span class="rv" id="stat-time">0s</span></div>
+      <div class="row"><span class="rl">SNAPSHOTS TAKEN</span>   <span class="rv" id="stat-snaps">0</span></div>
+    </div>
+
+    <div class="card">
+      <h3>FACE COUNT FREQUENCY</h3>
+      <div class="bar-row"><span class="bar-lbl">0</span>  <div class="bar-track"><div class="bar-fill" id="bar-0"></div></div><span class="bar-val" id="bv-0">0</span></div>
+      <div class="bar-row"><span class="bar-lbl">1</span>  <div class="bar-track"><div class="bar-fill" id="bar-1"></div></div><span class="bar-val" id="bv-1">0</span></div>
+      <div class="bar-row"><span class="bar-lbl">2</span>  <div class="bar-track"><div class="bar-fill" id="bar-2"></div></div><span class="bar-val" id="bv-2">0</span></div>
+      <div class="bar-row"><span class="bar-lbl">3+</span> <div class="bar-track"><div class="bar-fill" id="bar-3"></div></div><span class="bar-val" id="bv-3">0</span></div>
+    </div>
+
+    <div class="card">
+      <h3>SYSTEM LOG</h3>
+      <div class="log" id="log" role="log" aria-live="off"></div>
+    </div>
+
+  </div><!-- /side-panel -->
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════ FOOTER -->
+<footer>
+  <span>⚡ 100% CLIENT-SIDE · NO DATA LEAVES YOUR DEVICE · MediaPipe FaceDetection v0.4</span>
+  <span id="clock">—</span>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════════════ LIGHTBOX -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Snapshot preview">
+  <button class="lb-close" id="lb-close" aria-label="Close preview">[ ✕ CLOSE ]</button>
+  <img id="lb-img" src="" alt="Captured snapshot">
+  <div class="lb-meta" id="lb-meta"></div>
+  <button class="lb-dl" id="lb-dl" aria-label="Download snapshot as PNG">[ ↓ DOWNLOAD PNG ]</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ SCRIPTS -->
+<!--
+  MediaPipe loads model weights from jsDelivr CDN on first use, then caches them.
+  After that, all face detection runs inside WebAssembly with zero network access.
+  No pixel data or image ever leaves the browser tab.
+-->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+<script src="face-detector.js"></script>
+
+</body>
+</html>
